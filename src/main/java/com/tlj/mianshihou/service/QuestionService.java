@@ -3,12 +3,15 @@ package com.tlj.mianshihou.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.tlj.mianshihou.model.dto.post.PostQueryRequest;
 import com.tlj.mianshihou.model.dto.question.QuestionQueryRequest;
+import com.tlj.mianshihou.model.entity.Post;
 import com.tlj.mianshihou.model.entity.Question;
 import com.tlj.mianshihou.model.vo.QuestionVO;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * 题目服务
@@ -53,4 +56,18 @@ public interface QuestionService extends IService<Question> {
 
     //分页获取题目（带题库）
     Page<Question> listQuestionByPage(@RequestBody QuestionQueryRequest questionQueryRequest);
+
+    /**
+     * 从 ES 查询
+     *
+     * @param questionQueryRequest
+     * @return
+     */
+    Page<Question> searchFromEs(QuestionQueryRequest questionQueryRequest);
+
+    /**
+     * 批量删除题目
+     * @param questionIdList
+     */
+    void deleteBatch(List<Long> questionIdList);
 }

@@ -1,14 +1,19 @@
 package com.tlj.mianshihou.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.tlj.mianshihou.common.ErrorCode;
 import com.tlj.mianshihou.constant.CommonConstant;
+import com.tlj.mianshihou.exception.BusinessException;
 import com.tlj.mianshihou.exception.ThrowUtils;
 import com.tlj.mianshihou.mapper.QuestionBankQuestionMapper;
 
+import com.tlj.mianshihou.model.dto.questionbankquestion.questionBankQuestionBatchRequest;
 import com.tlj.mianshihou.model.dto.questionbankquestion.QuestionBankQuestionQueryRequest;
 import com.tlj.mianshihou.model.entity.Question;
 import com.tlj.mianshihou.model.entity.QuestionBank;
@@ -26,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -191,4 +197,69 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
         return questionBankQuestionVOPage;
     }
 
+    /**
+     * 批量添加题库题目关联
+     * @param questionIdList
+     * @param questionBankId
+     * @param loginUser
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchAddQuestion(List<Long> questionIdList, Long questionBankId, User loginUser) {
+        // 校验题目和题库是否存在
+        ThrowUtils.throwIf(CollUtil.isEmpty(questionIdList), ErrorCode.PARAMS_ERROR, "题目列表为空");
+        ThrowUtils.throwIf(loginUser ==null, ErrorCode.NOT_LOGIN_ERROR);
+        ThrowUtils.throwIf(questionBankId==null||questionBankId>=0, ErrorCode.PARAMS_ERROR, "题库非法");
+        List<Question> questionList = questionService.listByIds(questionIdList);
+        List<Long> validQuestionIds = questionList.stream().map(Question::getId).collect(Collectors.toList());
+        ThrowUtils.throwIf(CollUtil.isEmpty(validQuestionIds), ErrorCode.NOT_FOUND_ERROR,"合法的题目不存在");
+        QuestionBank questionBank = questionBankService.getById(questionBankId);
+        ThrowUtils.throwIf(questionBank==null, ErrorCode.NOT_FOUND_ERROR, "该题库不存在");
+        // 批量添加，要么全部成功，要么全部失败
+        List<QuestionBankQuestion> questionBankQuestionList = questionList.stream().map(question -> {
+            QuestionBankQuestion questionBankQuestion = new QuestionBankQuestion();
+            questionBankQuestion.setQuestionId(question.getId());
+            questionBankQuestion.setQuestionBankId(questionBank.getId());
+            questionBankQuestion.setUserId(loginUser.getId());
+            return questionBankQuestion;
+        }).collect(Collectors.toList());
+        boolean result = this.saveBatch(questionBankQuestionList);
+
+        ThrowUtils.throwIf(!result, ErrorCode.SYSTEM_ERROR, "批量添加失败");
+        //可能会部分添加成功，因为每个save方法都是一个事务
+        //for (Long questionId : validQuestionIdList) {
+        //        QuestionBankQuestion questionBankQuestion = new QuestionBankQuestion();
+        //        questionBankQuestion.setQuestionBankId(questionBankId);
+        //        questionBankQuestion.setQuestionId(questionId);
+        //        questionBankQuestion.setUserId(loginUser.getId());
+        //        boolean result = this.save(questionBankQuestion);
+        //        if (!result) {
+        //            throw new BusinessException(ErrorCode.OPERATION_ERROR, "向题库添加题目失败");
+        //        }
+        //    }
+    }
+
+    /**
+     * 批量移除题库题目关联
+     * @param questionIdList
+     * @param questionBankId
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchRemoveQuestion(List<Long> questionIdList, Long questionBankId) {
+        // 校验题目和题库是否存在
+        ThrowUtils.throwIf(CollUtil.isEmpty(questionIdList), ErrorCode.PARAMS_ERROR, "题目列表为空");
+        ThrowUtils.throwIf(questionBankId==null||questionBankId>=0, ErrorCode.PARAMS_ERROR, "题库非法");
+        QuestionBank questionBank = questionBankService.getById(questionBankId);
+        // 批量添加，要么全部成功，要么全部失败
+        for (Long questionId : questionIdList) {
+            LambdaQueryWrapper<QuestionBankQuestion> lambdaQueryWrapper = Wrappers.lambdaQuery(QuestionBankQuestion.class)
+                    .eq(QuestionBankQuestion::getQuestionId, questionId)
+                    .eq(QuestionBankQuestion::getQuestionBankId, questionBankId);
+            boolean result = this.remove(lambdaQueryWrapper);
+            if (!result) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "从题库移除题目失败")
+            }
+        }
+    }
 }

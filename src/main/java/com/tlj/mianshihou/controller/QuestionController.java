@@ -10,10 +10,7 @@ import com.tlj.mianshihou.common.ResultUtils;
 import com.tlj.mianshihou.constant.UserConstant;
 import com.tlj.mianshihou.exception.BusinessException;
 import com.tlj.mianshihou.exception.ThrowUtils;
-import com.tlj.mianshihou.model.dto.question.QuestionAddRequest;
-import com.tlj.mianshihou.model.dto.question.QuestionEditRequest;
-import com.tlj.mianshihou.model.dto.question.QuestionQueryRequest;
-import com.tlj.mianshihou.model.dto.question.QuestionUpdateRequest;
+import com.tlj.mianshihou.model.dto.question.*;
 import com.tlj.mianshihou.model.entity.Question;
 import com.tlj.mianshihou.model.entity.User;
 import com.tlj.mianshihou.model.vo.QuestionVO;
@@ -242,5 +239,28 @@ public class QuestionController {
         return ResultUtils.success(true);
     }
 
+    /**
+     * 搜索题目（es实现）
+     * @param questionQueryRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/search/page/vo")
+    public BaseResponse<Page<QuestionVO>> searchQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
+                                                                 HttpServletRequest request) {
+        long size = questionQueryRequest.getPageSize();
+        // 限制爬虫
+        ThrowUtils.throwIf(size > 200, ErrorCode.PARAMS_ERROR);
+        Page<Question> questionPage = questionService.searchFromEs(questionQueryRequest);
+        return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
+    }
+
+    @DeleteMapping("/delete/batch")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> deleteBatch(@RequestBody QuestionBatchDeleteRequest questionBatchDeleteRequest) {
+        ThrowUtils.throwIf(questionBatchDeleteRequest == null, ErrorCode.PARAMS_ERROR,"参数为空");
+        questionService.deleteBatch(questionBatchDeleteRequest.getQuestionIdList());
+        return ResultUtils.success(true);
+    }
     // endregion
 }

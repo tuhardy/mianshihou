@@ -3,11 +3,14 @@ package com.tlj.mianshihou.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.tlj.mianshihou.model.dto.questionbankquestion.questionBankQuestionBatchRequest;
 import com.tlj.mianshihou.model.dto.questionbankquestion.QuestionBankQuestionQueryRequest;
 import com.tlj.mianshihou.model.entity.QuestionBankQuestion;
+import com.tlj.mianshihou.model.entity.User;
 import com.tlj.mianshihou.model.vo.QuestionBankQuestionVO;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 
 /**
  * 题库题目关联服务
@@ -49,4 +52,20 @@ public interface QuestionBankQuestionService extends IService<QuestionBankQuesti
      * @return
      */
     Page<QuestionBankQuestionVO> getQuestionBankQuestionVOPage(Page<QuestionBankQuestion> questionBankQuestionPage, HttpServletRequest request);
+
+    /**
+     * 批量添加题库题目关联
+     * @param questionIdList
+     * @param questionBankId
+     * @param loginUser
+     */
+    void batchAddQuestion(List<Long> questionIdList, Long questionBankId, User loginUser);
+
+    /**
+     * 批量移除题库题目关联
+     * @param questionIds
+     * @param questionBankId
+     */
+
+    void batchRemoveQuestion(List<Long> questionIds, Long questionBankId);
 }
