@@ -1,6 +1,7 @@
 package com.tlj.mianshihou.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import com.tlj.mianshihou.annotation.AuthCheck;
 import com.tlj.mianshihou.common.BaseResponse;
 import com.tlj.mianshihou.common.DeleteRequest;
@@ -141,6 +142,15 @@ public class QuestionBankController {
         ThrowUtils.throwIf(questionBankQueryRequest == null, ErrorCode.PARAMS_ERROR);
         long id = questionBankQueryRequest.getId();
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+        //生成key(hotkey使用）
+        String key="bank_detail_"+id;
+        //判断是否为热key
+        //Todo 可以结合redis形成三级缓存,可以自定义注解把业务逻辑和缓存逻辑分离（参考@Cacheable，利用AOP实现）
+        if(JdHotKeyStore.isHotKey(key)){
+            //热key，直接返回
+            Object cachedQuestionBankVO=JdHotKeyStore.get(key);
+            return ResultUtils.success((QuestionBankVO)cachedQuestionBankVO);
+        }
         // 查询数据库
         QuestionBank questionBank = questionBankService.getById(id);
         ThrowUtils.throwIf(questionBank == null, ErrorCode.NOT_FOUND_ERROR);
@@ -155,6 +165,8 @@ public class QuestionBankController {
             Page<Question> questionPage = questionService.listQuestionByPage(questionQueryRequest);
             questionBankVO.setQuestionPage(questionPage);
         }
+        //设置为热key
+        JdHotKeyStore.smartSet(key, questionBankVO);
         // 获取封装类
         return ResultUtils.success(questionBankVO);
     }
